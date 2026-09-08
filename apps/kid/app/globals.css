@@ -1,0 +1,9 @@
+:root { font-family: Inter, system-ui, sans-serif; color: #251f1b; background: #fff4c7; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+.page-shell { max-width: 760px; margin: 0 auto; padding: 64px 24px; text-align: center; }
+h1 { font-size: clamp(48px, 10vw, 84px); line-height: .95; letter-spacing: -.055em; margin: 24px 0; }
+p { max-width: 620px; margin: 0 auto; font-size: 20px; line-height: 1.55; }
+.badge { display: inline-block; padding: 9px 14px; border: 2px solid currentColor; border-radius: 999px; font-weight: 700; }
+.choices { display: grid; gap: 12px; margin: 40px auto 0; max-width: 420px; }
+button { border: 0; border-radius: 22px; padding: 18px 20px; font: inherit; font-size: 20px; font-weight: 700; background: white; cursor: pointer; }

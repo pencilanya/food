@@ -1,0 +1,15 @@
+{
+  "name": "food-lunchbox",
+  "private": true,
+  "packageManager": "pnpm@10.15.1",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "pnpm --parallel --filter './apps/*' dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0"
+  }
+}
