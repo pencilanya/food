@@ -22,6 +22,11 @@ pnpm dev
 Parent app: http://localhost:3000
 Kid app: http://localhost:3001
 
+Both apps share the same lightweight demo state through a localhost cookie. Open
+them in two tabs of the same browser to run the full Kid → Parent approval flow.
+
+Deployed parent prototype: https://pencilanya.github.io/food/
+
 ## Commands
 
 ```bash
@@ -29,8 +34,12 @@ pnpm dev
 pnpm build
 pnpm lint
 pnpm typecheck
+pnpm test
 ```
 
 ## Integration boundary
 
-The scaffold intentionally does not depend on an undocumented Samokat API. Product/catalog data should be introduced through an adapter in a later iteration, keeping the core lunchbox domain independent from a specific provider.
+The MVP intentionally does not depend on an undocumented Samokat API. The local
+catalog uses `MockCatalogProvider`; future sources can implement `CatalogProvider`
+without changing lunchbox rules. Authentication, production persistence, delivery,
+payments and medical recommendations are intentionally out of scope.

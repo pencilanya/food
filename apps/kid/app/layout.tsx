@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Мой ланчбокс",
-  description: "Детская версия школьного ланчбокса",
+  title: "Боксик — собери свой ланч",
+  description: "Игровой конструктор школьного ланчбокса",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

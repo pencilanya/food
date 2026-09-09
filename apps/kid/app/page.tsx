@@ -1,15 +1,45 @@
-import { Badge, PageShell } from "@food/ui";
+"use client";
+import { useEffect, useMemo, useState } from "react";
+import { filterCatalogForChild, getMascotReaction, initialDemoState, mockCatalog, priceToStars, readDemoState, resetDemoState, submitLunchbox, validateLunchbox, withItem, withoutItem, writeDemoState, type DemoState, type FoodTag, type LunchboxSlot } from "@food/domain";
+import { Badge, Button, FoodCard, LunchboxSlot as Slot, MascotBubble, Progress, RewardBadge, SectionHeader } from "@food/ui";
+
+type ToolRegistry = { registerTool(tool:{ name:string; title:string; description:string; inputSchema:object; annotations:{readOnlyHint:boolean;untrustedContentHint:boolean}; execute(input:unknown):unknown },options:{signal:AbortSignal}):void|Promise<void> };
+
+const slots: { id: LunchboxSlot; label: string; icon: string }[] = [{id:"main",label:"Основное",icon:"🥪"},{id:"snack",label:"Перекус",icon:"✨"},{id:"fruit_or_vegetable",label:"Свежее",icon:"🍎"},{id:"drink",label:"Напиток",icon:"💧"}];
+const tagNames: Partial<Record<FoodTag,string>> = { protein:"Белок 💪", fiber:"Клетчатка 🌱", fruit:"Фрукт 🍎", vegetable:"Овощ 🥕", crunchy:"Хрустящее ✨", filling:"Сытное ⚡", fresh:"Свежее 🌱", low_sugar:"Без лишнего сахара", dairy:"Молочное", whole_grain:"Цельнозерновое", junk:"Снек" };
+const deliveryLabel=(iso:string)=>new Intl.DateTimeFormat("ru-RU",{weekday:"long",day:"numeric",month:"long"}).format(new Date(`${iso}T12:00:00`));
+const coinWord=(value:number)=>value%10===1&&value%100!==11?"монету":value%10>=2&&value%10<=4&&(value%100<12||value%100>14)?"монеты":"монет";
 
 export default function KidHome() {
-  return (
-    <PageShell>
-      <Badge>Мой ланчбокс</Badge>
-      <h1>Что возьмём с собой?</h1>
-      <p>Здесь ребёнок сможет увидеть выбранный ланч и отметить, что нравится, а что хочется заменить.</p>
-      <div className="choices" aria-label="Пример выбора">
-        <button>👍 Хочу это</button>
-        <button>🔁 Давай другое</button>
+  const [state,setState]=useState<DemoState>(initialDemoState); const [activeSlot,setActiveSlot]=useState<LunchboxSlot>("main"); const [ready,setReady]=useState(false); const [notice,setNotice]=useState("");
+  useEffect(()=>{const first=readDemoState();setState(first);if(first.changeRequest?.slots[0])setActiveSlot(first.changeRequest.slots[0]);setReady(true);const sync=()=>{const fresh=readDemoState();setState((previous)=>{if(fresh.lunchbox.updatedAt!==previous.lunchbox.updatedAt&&fresh.lunchbox.status!==previous.lunchbox.status){setNotice(fresh.lunchbox.status==="approved"?"Родитель одобрил бокс!":fresh.lunchbox.status==="changes_requested"?"Родитель оставил комментарий":"Бокс обновлён");if(fresh.changeRequest?.slots[0])setActiveSlot(fresh.changeRequest.slots[0])}return fresh})};const timer=window.setInterval(sync,1200);window.addEventListener("focus",sync);window.addEventListener("lunchbox-state",sync);return()=>{window.clearInterval(timer);window.removeEventListener("focus",sync);window.removeEventListener("lunchbox-state",sync)}},[]);
+  useEffect(()=>{const context=(document as Document&{modelContext?:ToolRegistry}).modelContext;if(!context?.registerTool)return;const lifecycle=new AbortController();void Promise.resolve(context.registerTool({name:"submit_lunchbox",title:"Собрать и отправить ланчбокс",description:"Заполнить четыре отделения безопасными продуктами и отправить готовый бокс родителю.",inputSchema:{type:"object",properties:{main:{type:"string"},snack:{type:"string"},fruit_or_vegetable:{type:"string"},drink:{type:"string"}},required:["main","snack","fruit_or_vegetable","drink"],additionalProperties:false},annotations:{readOnlyHint:false,untrustedContentHint:false},execute(input){if(!input||typeof input!=="object")throw new Error("Нужны четыре продукта");const values=input as Record<LunchboxSlot,unknown>;let next=readDemoState();for(const slot of slots){const id=values[slot.id];if(typeof id!=="string")throw new Error(`Не выбрано отделение: ${slot.label}`);next=withItem(next,slot.id,id)}const checked=validateLunchbox(next.lunchbox,next.profile,mockCatalog);if(!checked.valid)throw new Error(checked.issues[0]?.message??"Бокс не готов");next=submitLunchbox(next);writeDemoState(next);setState(next);return {status:next.lunchbox.status,balanceScore:next.lunchbox.balanceScore,items:next.lunchbox.items.length}}},{signal:lifecycle.signal})).catch(()=>undefined);return()=>lifecycle.abort()},[]);
+  const update=(next:DemoState)=>{setState(next);writeDemoState(next);setNotice("")};
+  const allowed=useMemo(()=>filterCatalogForChild(mockCatalog,state.profile),[state.profile]); const visible=allowed.filter((food)=>food.allowedSlots.includes(activeSlot));
+  const validation=validateLunchbox(state.lunchbox,state.profile,mockCatalog); const reaction=getMascotReaction(state.lunchbox); const coins=state.rewards.reduce((sum,reward)=>sum+reward.amount,0); const stars=priceToStars(state.lunchbox.priceKopecks,state.profile.maxLunchboxPriceKopecks); const locked=state.lunchbox.status==="pending_approval"||state.lunchbox.status==="approved"; const isRevision=state.lunchbox.status==="changes_requested";
+  const selectFood=(foodItemId:string)=>{try{update(withItem(state,activeSlot,foodItemId));setNotice("Отличный выбор ✨")}catch(error){setNotice(error instanceof Error?error.message:"Не получилось добавить")}};
+  if(!ready)return <main className="kid-loading" aria-live="polite"><div className="loading-orb"/>Собираем коробочку…</main>;
+  return <main className="kid-app">
+    <header className="kid-topbar"><div><Badge>{deliveryLabel(state.lunchbox.deliveryDate)}</Badge><h1>Привет, {state.profile.name}!</h1></div><div className="kid-counters"><span className="stars" aria-label={`Осталось звёзд: ${stars}`}>{"⭐".repeat(stars)}<i>{"☆".repeat(5-stars)}</i></span><RewardBadge coins={coins}/></div></header>
+    <section className="kid-hero"><div className="hero-copy"><span className="kicker">твоя миссия</span><h2>{state.lunchbox.status==="approved"?"Бокс одобрен!":state.lunchbox.status==="pending_approval"?"Ждём ответа":isRevision?"Исправим вместе":"Собери свой бокс"}</h2><MascotBubble message={state.lunchbox.status==="approved"?`Начислено ${coins} ${coinWord(coins)}!`:isRevision?"Родитель подсказал, что поменять":reaction.message}/></div><img src="/lunchbox-hero.png" alt="Дружелюбный маскот рядом с открытым ланчбоксом"/></section>
+    {isRevision&&state.changeRequest&&<section className="kid-request" aria-live="polite"><span className="kicker">комментарий родителя</span><strong>{state.changeRequest.comment}</strong>{state.changeRequest.slots.length>0&&<small>Проверь: {state.changeRequest.slots.map((id)=>slots.find((slot)=>slot.id===id)?.label).join(", ")}</small>}</section>}
+    <section className={`lunchbox-board ${locked?"locked":""}`} aria-label="Твой ланчбокс">{slots.map((slot)=>{const selected=state.lunchbox.items.find((entry)=>entry.slot===slot.id);const food=mockCatalog.find((entry)=>entry.id===selected?.foodItemId);const invalid=validation.issues.some((issue)=>issue.slot===slot.id)||Boolean(isRevision&&state.changeRequest?.slots.includes(slot.id));return <Slot key={slot.id} label={slot.label} icon={slot.icon} food={food} invalid={invalid} onSelect={locked?undefined:()=>setActiveSlot(slot.id)} onRemove={!locked&&food?()=>update(withoutItem(state,slot.id)):undefined}/>})}</section>
+    <section className="balance-card"><div><span className="kicker">баланс бокса</span><strong>{state.lunchbox.balanceScore>=90?"Отличный баланс 🌱":state.lunchbox.balanceScore>=60?"Хороший баланс":"Можно ещё улучшить"}</strong></div><Progress value={state.lunchbox.balanceScore} label="Заполненность и баланс"/></section>
+    {!locked&&<section className="catalog-section"><SectionHeader eyebrow="выбери один" title={slots.find((slot)=>slot.id===activeSlot)?.label??"Продукты"} action={<span className="catalog-count">{visible.length} вариантов</span>}/><div className="slot-tabs" role="tablist" aria-label="Отделение ланчбокса">{slots.map((slot)=><button key={slot.id} role="tab" aria-selected={activeSlot===slot.id} onClick={()=>setActiveSlot(slot.id)}>{slot.icon} {slot.label}</button>)}</div><div className="catalog-grid">{visible.length?visible.map((food)=><FoodCard key={food.id} emoji={food.emoji} title={food.title} tags={food.tags.map((tag)=>tagNames[tag]??tag)} meta={"⭐".repeat(Math.max(1,Math.ceil(food.priceKopecks/state.profile.maxLunchboxPriceKopecks*5)))} selected={state.lunchbox.items.some((entry)=>entry.foodItemId===food.id)} onClick={()=>selectFood(food.id)}/>):<p className="empty-catalog">Для этого отделения пока нет подходящих продуктов.</p>}</div></section>}
+    <footer className="kid-actions">
+      <div aria-live="polite">
+        <strong>{notice || (state.lunchbox.status === "pending_approval" ? "Родитель уже проверяет" : state.lunchbox.status === "approved" ? "Всё готово!" : validation.valid ? "Можно отправлять" : validation.issues[0]?.message)}</strong>
+        <small>{state.lunchbox.items.length} из 4 отделений</small>
       </div>
-    </PageShell>
-  );
+      {state.lunchbox.status === "approved" ? (
+        <Button className="secondary" onClick={()=>{setState(resetDemoState());setNotice("Начинаем заново")}}>Новая демо-сборка</Button>
+      ) : state.lunchbox.status === "pending_approval" ? (
+        <Button disabled>Ждём родителя</Button>
+      ) : (
+        <Button disabled={!validation.valid} onClick={()=>{try{update(submitLunchbox(state));setNotice(isRevision?"Исправленный бокс отправлен!":"Бокс улетел к родителю! 🚀")}catch(error){setNotice(error instanceof Error?error.message:"Бокс пока не готов")}}}>
+          {isRevision ? "Отправить снова ↗" : "Отправить родителю ↗"}
+        </Button>
+      )}
+    </footer>
+  </main>;
 }

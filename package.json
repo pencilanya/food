@@ -7,7 +7,8 @@
     "dev": "pnpm --parallel --filter './apps/*' dev",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm --filter @food/domain test"
   },
   "devDependencies": {
     "typescript": "^5.9.0"
