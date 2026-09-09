@@ -3,7 +3,7 @@ name: Deploy parent prototype to GitHub Pages
 on:
   push:
     branches:
-      - codex/lunchbox-mvp
+      - main
   workflow_dispatch:
 
 permissions:
