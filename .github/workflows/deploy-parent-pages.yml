@@ -1,4 +1,4 @@
-name: Deploy parent prototype to GitHub Pages
+name: Deploy Sber flow prototype to GitHub Pages
 
 on:
   push:
@@ -22,30 +22,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Enable Corepack
-        run: corepack enable
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build parent app
-        env:
-          NEXT_PUBLIC_BASE_PATH: /food
-        run: pnpm --filter @food/parent build
-
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
       - name: Upload static site
         uses: actions/upload-pages-artifact@v4
         with:
-          path: apps/parent/out
+          path: concepts/sber-flow
 
   deploy:
     environment:
